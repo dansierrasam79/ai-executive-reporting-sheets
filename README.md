@@ -49,7 +49,7 @@ This project completely automates that lifecycle into a **4-stage intelligent re
 
 ## 📁 Repository Structure
 ai-executive-reporting-sheets/
-│
+
 ├── .clasp.json             # clasp configuration mapping local code to Apps Script project ID
 ├── .gitignore              # Protects sensitive files, credentials, and clasp tokens
 ├── appsscript.json         # Apps Script manifest and OAuth scope definitions
