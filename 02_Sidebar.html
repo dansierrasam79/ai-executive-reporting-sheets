@@ -1,0 +1,210 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <base target="_top">
+  <style>
+    * {
+      box-sizing: border-box;
+      font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+    }
+    body {
+      padding: 16px;
+      margin: 0;
+      background-color: #f8f9fa;
+      color: #202124;
+      font-size: 13px;
+    }
+    h3 {
+      margin-top: 0;
+      margin-bottom: 4px;
+      color: #1a73e8;
+    }
+    .subtitle {
+      font-size: 11px;
+      color: #5f6368;
+      margin-bottom: 16px;
+    }
+    label {
+      display: block;
+      font-weight: 600;
+      margin-top: 10px;
+      margin-bottom: 4px;
+      font-size: 12px;
+    }
+    select {
+      width: 100%;
+      padding: 8px;
+      border: 1px solid #dadce0;
+      border-radius: 4px;
+      background-color: #ffffff;
+      outline: none;
+    }
+    select:focus {
+      border-color: #1a73e8;
+    }
+    button {
+      width: 100%;
+      margin-top: 18px;
+      padding: 10px;
+      background-color: #1a73e8;
+      color: #ffffff;
+      border: none;
+      border-radius: 4px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: background 0.2s;
+    }
+    button:hover {
+      background-color: #1557b0;
+    }
+    button:disabled {
+      background-color: #bdc1c6;
+      cursor: not-allowed;
+    }
+    .stats-card {
+      margin-top: 20px;
+      padding: 12px;
+      background-color: #ffffff;
+      border: 1px solid #e8eaed;
+      border-radius: 6px;
+      display: none;
+    }
+    .stats-title {
+      font-weight: 600;
+      margin-bottom: 8px;
+      color: #3c4043;
+      border-bottom: 1px solid #f1f3f4;
+      padding-bottom: 4px;
+    }
+    .stat-row {
+      display: flex;
+      justify-content: space-between;
+      margin-bottom: 6px;
+    }
+    .stat-val {
+      font-weight: 600;
+    }
+    .positive { color: #137333; }
+    .negative { color: #c5221f; }
+    .spinner {
+      display: none;
+      text-align: center;
+      margin-top: 14px;
+      font-style: italic;
+      color: #5f6368;
+    }
+  </style>
+</head>
+<body>
+
+  <h3>Segment Slicer</h3>
+  <div class="subtitle">Filter 15,000+ sales and extract subsets</div>
+
+  <label for="selYear">Year</label>
+  <select id="selYear">
+    <option value="">All Years</option>
+  </select>
+
+  <label for="selRegion">Region</label>
+  <select id="selRegion">
+    <option value="">All Regions</option>
+  </select>
+
+  <label for="selChannel">Channel</label>
+  <select id="selChannel">
+    <option value="">All Channels</option>
+  </select>
+
+  <button id="btnFilter" onclick="applyFilter()">Extract Segment</button>
+
+  <div id="spinner" class="spinner">Filtering records...</div>
+
+  <div id="statsCard" class="stats-card">
+    <div class="stats-title">Segment Summary</div>
+    <div class="stat-row">
+      <span>Rows Matched:</span>
+      <span id="statRows" class="stat-val">0</span>
+    </div>
+    <div class="stat-row">
+      <span>Total Sales:</span>
+      <span id="statSales" class="stat-val">$0.00</span>
+    </div>
+    <div class="stat-row">
+      <span>Total Profit:</span>
+      <span id="statProfit" class="stat-val">$0.00</span>
+    </div>
+    <div class="stat-row">
+      <span>Margin %:</span>
+      <span id="statMargin" class="stat-val">0.0%</span>
+    </div>
+  </div>
+
+  <script>
+    // Load filter options dynamically when sidebar opens
+    window.onload = function() {
+      google.script.run
+        .withSuccessHandler(populateDropdowns)
+        .withFailureHandler(handleError)
+        .slicer_getFilterOptions();
+    };
+
+    function populateDropdowns(options) {
+      fillSelect('selYear', options.years);
+      fillSelect('selRegion', options.regions);
+      fillSelect('selChannel', options.channels);
+    }
+
+    function fillSelect(elemId, items) {
+      const select = document.getElementById(elemId);
+      items.forEach(item => {
+        const opt = document.createElement('option');
+        opt.value = item;
+        opt.textContent = item;
+        select.appendChild(opt);
+      });
+    }
+
+    function applyFilter() {
+      const criteria = {
+        year: document.getElementById('selYear').value,
+        region: document.getElementById('selRegion').value,
+        channel: document.getElementById('selChannel').value
+      };
+
+      document.getElementById('btnFilter').disabled = true;
+      document.getElementById('spinner').style.display = 'block';
+      document.getElementById('statsCard').style.display = 'none';
+
+      google.script.run
+        .withSuccessHandler(showResults)
+        .withFailureHandler(handleError)
+        .slicer_applyFilterAndExtract(criteria);
+    }
+
+    function showResults(res) {
+      document.getElementById('btnFilter').disabled = false;
+      document.getElementById('spinner').style.display = 'none';
+
+      document.getElementById('statRows').textContent = res.rowCount.toLocaleString();
+      document.getElementById('statSales').textContent = '$' + res.totalSales.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2});
+      
+      const profitElem = document.getElementById('statProfit');
+      profitElem.textContent = '$' + res.totalProfit.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2});
+      profitElem.className = 'stat-val ' + (res.totalProfit >= 0 ? 'positive' : 'negative');
+
+      const marginElem = document.getElementById('statMargin');
+      marginElem.textContent = res.marginPct.toFixed(2) + '%';
+      marginElem.className = 'stat-val ' + (res.marginPct >= 0 ? 'positive' : 'negative');
+
+      document.getElementById('statsCard').style.display = 'block';
+    }
+
+    function handleError(err) {
+      document.getElementById('btnFilter').disabled = false;
+      document.getElementById('spinner').style.display = 'none';
+      alert('Error: ' + err.message);
+    }
+  </script>
+
+</body>
+</html>
